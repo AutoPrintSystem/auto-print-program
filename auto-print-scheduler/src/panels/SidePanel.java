@@ -11,8 +11,8 @@ import java.awt.event.ActionListener;
 
 public class SidePanel extends JPanel {
     private final CButton homeButton;
-    private final CButton button1;
-    private final CButton button2;
+    private final CButton controlButton;
+    private final CButton logButton;
     private ActionHandler actionHandler;
 
     public SidePanel() {
@@ -23,42 +23,45 @@ public class SidePanel extends JPanel {
         gbc.anchor = GridBagConstraints.NORTH; // 버튼 위로 붙이기
 
         this.setBackground(Constants.Colors.blue);
-        actionHandler =new ActionHandler();
+        actionHandler = new ActionHandler();
 
         gbc.gridy = 0;
         gbc.weighty = 0;
-        homeButton = new CButton("Pre-print","home");
+        homeButton = new CButton("Pre-print", "home");
         homeButton.addActionListener(actionHandler);
         homeButton.activeSelectedColor();
         this.add(homeButton, gbc);
 
 
         gbc.gridy = 1;
-        button1 = new CButton("프린터기 설정","config");
-        button1.addActionListener(actionHandler);
-        this.add(button1, gbc);
+        controlButton = new CButton("프린터기 설정", "control");
+        controlButton.addActionListener(actionHandler);
+        this.add(controlButton, gbc);
 
         gbc.gridy = 2;
-        button2 = new CButton("로그 조회 및 설정","log");
-        button2.addActionListener(actionHandler);
-        this.add(button2, gbc);
+        logButton = new CButton("로그 조회 및 설정", "log");
+        logButton.addActionListener(actionHandler);
+        this.add(logButton, gbc);
 
         gbc.gridy = 3;
         gbc.weighty = 1;
         this.add(new JLabel(""), gbc);
 
     }
-    public CButton getButton1(){
-        return this.button1;
+
+    public CButton getControlButton() {
+        return this.controlButton;
     }
-    public CButton getButton2(){
-        return this.button2;
+
+    public CButton getLogButton() {
+        return this.logButton;
     }
-    public CButton getHomeButton(){
+
+    public CButton getHomeButton() {
         return this.homeButton;
     }
 
-    private class ActionHandler implements ActionListener{
+    private class ActionHandler implements ActionListener {
 
         @Override
         public void actionPerformed(ActionEvent e) {
@@ -67,19 +70,19 @@ public class SidePanel extends JPanel {
             switch (clickedButton) {
                 case "home" -> {
                     homeButton.setSelected(false);
-                    button1.setSelected(false);
-                    button2.setSelected(false);
+                    controlButton.setSelected(false);
+                    logButton.setSelected(false);
 
                 }
-                case "config" -> {
+                case "control" -> {
                     homeButton.setSelected(false);
-                    button1.setSelected(true);
-                    button2.setSelected(false);
+                    controlButton.setSelected(true);
+                    logButton.setSelected(false);
                 }
                 case "log" -> {
                     homeButton.setSelected(false);
-                    button1.setSelected(false);
-                    button2.setSelected(true);
+                    controlButton.setSelected(false);
+                    logButton.setSelected(true);
                 }
             }
         }
