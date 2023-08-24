@@ -1,39 +1,135 @@
 package screens;
 
-import javax.print.PrintService;
-import javax.print.PrintServiceLookup;
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.printing.PDFPageable;
+import panels.PrintPanel;
+import panels.PrintPanel.PrintTable;
+
+import javax.print.*;
+import javax.print.attribute.HashPrintRequestAttributeSet;
+import javax.print.attribute.PrintRequestAttributeSet;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.print.PrinterJob;
+import java.io.File;
+import java.io.FileInputStream;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Vector;
 
 public class ControlScreen extends JPanel {
     FileTable fileTable;
-    PrintTable printTable;
-    public ControlScreen(){
-        JLabel label = new JLabel("컨트롤화면입니다.");
-        this.add(label);
+    PrintPanel printPanel;
+    String folderPath;
+    //    private PrintService selectedPrint;
+//    private Vector<PrintService> availablePrinters;
+    public ControlScreen() {
+        setLayout(new BorderLayout());
 
         fileTable = new FileTable();
         JScrollPane scrollPane = new JScrollPane(fileTable);
+        this.add(scrollPane, BorderLayout.CENTER);
 
-        this.add(scrollPane);
+        JButton folderButton = new JButton("폴더 경로 수정");
+        folderButton.addActionListener(e -> selectFolderPath());
 
-        printTable = new PrintTable();
-        JScrollPane scrollPane2 = new JScrollPane(printTable);
+        JButton printButton = new JButton("출력");
+        printButton.addActionListener(e -> printFileWithPDFBox());
 
-        this.add(scrollPane2);
+        JPanel buttonsPanel = new JPanel();
+        buttonsPanel.add(folderButton);
+        buttonsPanel.add(printButton);
+
+        this.add(buttonsPanel, BorderLayout.NORTH);
+
+        printPanel = new PrintPanel();
+        this.add(printPanel, BorderLayout.SOUTH);
 
     }
+    private void selectFolderPath() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        int returnVal = fileChooser.showOpenDialog(this);
 
-    public class FileTable extends JTable{
+        if (returnVal == JFileChooser.APPROVE_OPTION) {
+            folderPath = fileChooser.getSelectedFile().getPath();
+            loadPDFFilesFromFolder(folderPath);
+        }
+    }
+    private void loadPDFFilesFromFolder(String path) {
+        File folder = new File(path);
+        File[] listOfFiles = folder.listFiles((dir, name) -> name.toLowerCase().endsWith(".pdf"));
+
+        DefaultTableModel model = (DefaultTableModel) fileTable.getModel();
+        model.setRowCount(0); // Clear previous rows
+
+        for (int i = 0; i < listOfFiles.length; i++) {
+            if (listOfFiles[i].isFile()) {
+                model.addRow(new Object[]{i+1, listOfFiles[i].getName(), "??", "??", "??"});  // 컬러/흑백, 출력시간, 상태 정보는 모르므로 ?? 로 표시했습니다.
+            }
+        }
+    }
+    private void printFile() {
+        if (folderPath == null || fileTable.getSelectedRow() == -1) {
+            JOptionPane.showMessageDialog(null, "파일 또는 프린터를 선택해주세요.");
+            return;
+        }
+
+        File selectedFile = new File(folderPath + "/" + fileTable.getValueAt(fileTable.getSelectedRow(), 1).toString());
+        PrintService printer = printPanel.selectedPrinter;
+
+        if (printer != null && selectedFile.exists()) {
+            try {
+                FileInputStream fis = new FileInputStream(selectedFile);
+                Doc doc = new SimpleDoc(fis, DocFlavor.INPUT_STREAM.AUTOSENSE, null);
+                DocPrintJob printJob = printer.createPrintJob();
+                PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
+                printJob.print(doc, attributes);
+            } catch (Exception e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null, "파일 출력 중 오류가 발생했습니다.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "올바른 프린터 또는 파일을 선택해주세요.");
+        }
+    }
+    private void printFileWithPDFBox() {
+        if (folderPath == null || fileTable.getSelectedRow() == -1) {
+            JOptionPane.showMessageDialog(null, "파일 또는 프린터를 선택해주세요.");
+            return;
+        }
+
+        File selectedFile = new File(folderPath + "/" + fileTable.getValueAt(fileTable.getSelectedRow(), 1).toString());
+        PrintService printer = printPanel.selectedPrinter;
+
+        if (printer != null && selectedFile.exists()) {
+            try {
+                PDDocument document = Loader.loadPDF(selectedFile);
+                PrinterJob job = PrinterJob.getPrinterJob();
+                job.setPrintService(printer);
+                job.setPageable(new PDFPageable(document));
+                job.print();
+                document.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null, "파일 출력 중 오류가 발생했습니다.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "올바른 프린터 또는 파일을 선택해주세요.");
+        }
+    }
+
+    public class FileTable extends JTable {
         private DefaultTableModel tableModel;
-        private String[] headers={"번호","파일명","컬러/흑백","출력시간", "상태"};
-        public FileTable(){
+        private String[] headers = {"번호", "파일명", "컬러/흑백", "출력시간", "상태"};
+
+        public FileTable() {
             Vector<String> header = createHeader(headers);
 
 
-            tableModel = new DefaultTableModel(headers, 5) {
+            tableModel = new DefaultTableModel(headers, 0) {
                 @Override
                 public boolean isCellEditable(int row, int column) {
                     return false; // Make all cells not editable
@@ -43,55 +139,13 @@ public class ControlScreen extends JPanel {
 
 
         }
+
         public Vector<String> createHeader(String[] inputList) { // create Table Header
             Vector<String> outputList = new Vector<String>();
             Collections.addAll(outputList, inputList);
             return outputList;
         }
     }
-    public class PrintTable extends JTable{
-        private DefaultTableModel tableModel;
-        private String[] headers={"사용 가능한 프린터기"};
-        private Vector<String> printers;
-        public PrintTable(){
-            Vector<String> header = createHeader(headers);
-            tableModel = new DefaultTableModel(headers,0){
-                @Override
-                public boolean isCellEditable(int row, int column){
-                    return false;
-                }
-            };
-            this.setModel(tableModel);
-            PrintManager printManager = new PrintManager();
-            printers = new Vector<>();
-            PrintService[] availablePrinter=printManager.refreshPrinter();
 
-            // Replace this loop in the PrintTable constructor
-            for (int i = 0; i < availablePrinter.length; i++) {
-                Vector<String> rowData = new Vector<>();
-                rowData.add(availablePrinter[i].toString());
-                tableModel.addRow(rowData);
-            }
 
-        }
-        public Vector<String> createHeader(String[] inputList) { // create Table Header
-            Vector<String> outputList = new Vector<String>();
-            Collections.addAll(outputList, inputList);
-            return outputList;
-        }
-
-    }
-    public class PrintManager{
-        public PrintManager(){
-            PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
-            for(int i=0;i<printServices.length;i++){
-                System.out.println(printServices[i]);
-            }
-
-        }
-        public PrintService[] refreshPrinter(){
-            PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
-            return printServices;
-        }
-    }
 }
